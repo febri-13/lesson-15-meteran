@@ -1,0 +1,152 @@
+#include <LiquidCrystal_I2C.h>    // memasukkan library lcd I2C
+
+/***
+    Ini adalah komen jadi tidak akan dibaca arduino, hanya dibaca untuk manusia
+    Pada rangkaian ini terhubung :
+    Komponen              Arduino
+    trig Ultrasonik  ->   pin 9
+    echo Ultrasonik  ->   pin 8
+    Anoda(A) Led     ->   pin 2
+    kaki 2 slide     ->   pin 10
+    SDA LCD I2C      ->   SDA atau pin A4
+    SCL LCD I2C      ->   SCL atau pin A5
+    Vcc`Ultrasonik   ->   5V
+    Vcc LCD I2C      ->   5V
+    GND Ultrasonik   ->   GND
+    GND LCD I2C      ->   GND
+    Cathode(C) LED   ->   GND
+    kaki tengah slide->   GND
+***/
+
+// deklarasi semua variabel global
+const int trigPin   = 9;  // deklarasi variabel bernama trigPin pada arduino pin 9
+const int echoPin   = 8;  // deklarasi variabel bernama echoPin pada arduino pin 8
+const int ledPin    = 2;  // deklarasi variabel bernama ledPin pada arduino pin 2
+const int slidePin  = 10; // deklarasi variabel bernama slidePin pada arduino pin 10
+
+/***
+  setelah library lcd I2C dipanggil/dimasukkan ke kode
+  dengan perintah #include <LiquidCrystal_I2C.h>
+
+  kemudian kita membuat objek degan cara memanggil salah satu perintah (sintaks) dari library
+  yaitu menggunakan : LiquidCrystal_I2C nama_objek(alamat I2c, kolom, baris);
+
+  pada kode ini kita menggunakan LiquidCrystal_I2C lcd (0x27, 16, 2);
+***/
+
+LiquidCrystal_I2C lcd (0x27, 16, 2); // pembuatan objek bernama lcd untuk lcd I2C
+
+/***
+  Pada kode ini void setup berfungsi untuk deklarasi perintah 
+  pinMode untuk setiap variabel pin yang digunakan, pada void ini
+  lcd diperintah untuk menyala dan menghidupkan lampu nya
+***/
+void setup() {
+  // setting pin mode
+  pinMode(trigPin , OUTPUT);        // setting trigPin  sebagai output
+  pinMode(echoPin , INPUT);         // setting echoPin  sebagai input
+  pinMode(ledPin  , OUTPUT);        // setting ledPin   sebagai output
+  pinMode(slidePin, INPUT_PULLUP);  // setting slidePin sebagai input pull up
+
+  // perintah untuk lcd
+  lcd.init();                 // lcd diperintahkan menyala
+  lcd.backlight();            // lcd diperintahkan menghidupkan lampunya
+  lcd.setCursor(0,0);         // lcd diperintah untuk setting kursor pada kolom pertama, baris pertama
+  lcd.print("METERAN LASER"); // lcd diperintah untuk menulis "METERAN LASER"
+
+  // setting kondisi semua pin output menjadi low
+  digitalWrite(trigPin, LOW);
+  digitalWrite(ledPin, LOW);
+
+  delay(3000); //berhenti selama 3 detik
+
+  /*
+    Penjelasan :
+    Mode pin Arduino ada kurang lebih 3, yaitu : 
+      INPUT   = pin arduino menerima sinyal (membaca kondisi pin tersebut) 
+                karena digital hanya ada angka 0 dan 1
+      OUTPUT  = pin arduino memberi perintah, karena digital hanya ada 1 dan 0
+                maka kondisinya akan mati atau menyala, tergantung pada bagaimana 
+                rangkaian ini dibuat, pada rangkaian ini 1 (HIGH) itu menyala 0 (LOW) itu mati
+      INPUT_PULLUP = fungsinya sama dengan input, berbedanya kondisi awal 
+                     pada input ini sudah ditetapkan yaitu kondisinya 1 jika dia merespon sesuatu
+                     maka kondisinya akan menjadi 0
+
+    trigPin disetting menjadi output karena trigpin adalah pemancar sinya suara ultrasonik
+    echoPin disetting menjadi input karena echopin adalah penerima sinyal suara ultrasonik
+    led pin akan dijadikan sebagai laser yang akan mati menyala
+    slide pin berfungsi sebagai saklar tapi kali ini kita menggunakan arduino sebagi perantara
+  */
+}
+
+void loop() {
+  lcd.clear();                // lcd diperintah menghapus semua isinya
+  // variabel lokal bernama jarak_terukur, yang nilainya mengambil dari fungsi mengukur_jarak
+  float jarak_terukur = mengukur_jarak();
+  kondisi_laser();            // memanggil fungsi kondisi laser
+  lcd.setCursor(0,0);         // lcd diperintah untuk setting kursor pada kolom pertama, baris pertama
+  lcd.print("Jarak: ");       // lcd diperintah untuk menulis "Jarak: "
+  lcd.print(jarak_terukur);   // lcd diperintah untuk menulis nilai dari variabel jarak_terukur
+  lcd.print("cm");            // lcd diperintah untuk menulis " cm"
+  delay(500);                 // berhenti selama 1 detik
+}
+
+/*
+  ini adalah fungsi yang digunakan untuk mengukur jarak
+  variabel global yang digunakan adalah trigPin dan echoPin
+  karean depannya fungsi ini berupa float, 
+  maka fungsi ini akan mengembalikan data berupa float
+*/
+float mengukur_jarak(){
+  digitalWrite(trigPin, HIGH);              // menyalakan triger pin atau pemancar sinyal
+  delayMicroseconds(10);                    // berhenti selama 10 mikro detik 
+  digitalWrite(trigPin, LOW);               // mematikan triger pin atau pemancar sinyal
+
+  // membuat variabel tipe "long" bernama durasi yang nilainya setara dengan 
+  // waktu pemancaran sinyal hingga sinyal diterima oleh pin echo
+  long durasi = pulseIn(echoPin, HIGH);     // menghitung waktu dari pemancaran sinyal hingga sinyal diterima oleh pin echo
+
+  // rumus yang digunakan untuk menghitung jarak yaitu, durasi dibagi 58 untuk centimeter
+  // jika ingin menggunakan inchi maka durasi dibagi 148
+  // membuat variabel dengan tipe "float" bernama jarak dengan nilai durasi dibagi 58.0
+  float jarak = durasi/58.0;    // karena tipe float adalah desimal maka kita menggunakan 58.0
+
+  // return adalah sebuah fungsi untuk mengembalikan nilai pada suatu fungsi
+  // jika return tidak ada maka fungsi ini akan dianggap mengembalikan nilai 0
+  return jarak;                 // ini adalah kembalian dari fungsi mengukur_jarak yaitu nilai dari jarak
+}
+
+/*
+  fungsi kondisi laser hanya untuk menyalakan dan mematikan laser
+  variabel global yang digunakan adalah slidePin dan ledPin
+  dengan deklarasi variabel lokal membacaPinSlide
+*/
+void kondisi_laser(){
+  // membuat variabel lokal tipe "int" bernama membacaPinSlide dengan nilai hasil bacaan 
+  // dari pembacaan variabel slidePin
+  int membacaPinSlide = digitalRead(slidePin); 
+
+  // fungsi if dijalankan saat membacaPinSlide nilainya tidak sama dengan 0
+  // dengan kata lain jika membacaPinSlide nilainya 1 maka fungsi if didalamnya dijalankan
+  // fungsi else akan dijalankan jika membacaPinSlide bernilai 0
+  if (membacaPinSlide != 0){
+    lcd.setCursor(0,1);           // memerintahkan lcd menulis pada kolom pertama, baris kedua
+    lcd.print("LASER MATI");      // memerintahkan lcd untuk menulis "LASER MATI"
+    digitalWrite(ledPin, LOW);    // mematikan ledPin
+  }
+  else{
+    lcd.setCursor(0,1);           // memerintahkan lcd menulis pada kolom pertama, baris kedua
+    lcd.print("LASER NYALA");     // memerintahkan lcd untuk menulis "LASER NYALA"
+    digitalWrite(ledPin, HIGH);   // menyalakan ledPin
+  }
+
+  /*
+  Catatan :
+  Operator logika != adalah tidak sama dengan nilainya
+  Operator logika == adalah sama persis nilainya
+  Operator logika >  adalah lebih besar dari
+  Operator logika >= adalah lebih besar dari sama dengan
+  Operator logika <  adalah lebih kecil dari
+  Operator logika <= adalah lebih kecil dari sama dengan
+  */
+}
